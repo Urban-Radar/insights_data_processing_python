@@ -1,19 +1,21 @@
 import os
+from enum import Enum
 from pathlib import Path
-from typing import Union, List, Any
+from typing import Union, List, Any, Dict
 
 import duckdb
 import pandas
 from duckdb import DuckDBPyConnection
+from duckdb.duckdb import DuckDBPyRelation
 
 from engine.io_with_insights import export_to_environment
-from engine.trips_calculator import extract_session_ids, extract_and_label_segments, extract_trips_with_stops, \
+from engine.trips_calculator import filter_data_relevant_to_perimeter, extract_and_label_segments, extract_trips_with_stops, \
     label_trip_points, enrich_trips, derive_od_datasets, prepare_trips_for_map_matching, infer_road_use, \
     infer_road_congestion
 
 from engine.geometry import build_area_of_interest
 from engine.floating_cars import build_mobility_database
-from engine.static import DataStorage, Environment
+from engine.static import DataStorage, Environment, Vehicle
 
 DATA_ROOT_DIR: Path = Path(os.getcwd()).parent / "data"
 
@@ -28,6 +30,17 @@ PROJECT_DEPLOYMENT_PATH: Path = DATA_ROOT_DIR / "blocks" / PROJECT_NAME
 
 DUCKDB_PATH: Path = Path(os.getcwd()) / "duckdb" / "temp.db"
 
+class Fields(Enum):
+    unique_id = "unique_id"
+    timestamp = "timestamp"
+    latitude = "latitude"
+    longitude = "longitude"
+    speed = "speed"
+    heading = "heading"
+    vehicle_type = "vehicle_type"
+    road_type = "road_type"
+    road_speed_limit = "road_speed_limit"
+    hour = "hour"
 
 
 class LasRozas:
@@ -44,8 +57,8 @@ class LasRozas:
 
         self.duck_con: DuckDBPyConnection = duckdb.connect(DUCKDB_PATH)
         self.area_of_interest: Union[DuckDBPyConnection|None] = None
-        self.area_of_interest_bounding_box: pandas.DataFrame = pandas.DataFrame()
-        self.bridgestone_mobility_database: Union[DuckDBPyConnection|None]  = None
+        self.area_of_interest_bounding_box: Dict[str, float] = dict()
+        self.bridgestone_mobility_database: Union[DuckDBPyRelation|None]  = None
 
 
     def full_pipeline(self) -> None:
@@ -69,8 +82,13 @@ class LasRozas:
 
     def infer_origin_destination(self):
 
-        extract_session_ids()
-        extract_and_label_segments()
+        extra_filters: Dict[str, List[str]] = {
+            Fields.vehicle_type.value: [Vehicle.truck.value, Vehicle.lcv.value]
+        }
+        session_ids: DuckDBPyRelation = filter_data_relevant_to_perimeter(self.bridgestone_mobility_database,
+                                                                          self.area_of_interest_bounding_box,
+                                                                          extra_filters)
+        extract_and_label_segments(session_ids)
         extract_trips_with_stops()
         label_trip_points()
         enrich_trips()

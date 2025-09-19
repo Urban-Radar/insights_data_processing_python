@@ -11,4 +11,5 @@ def build_mobility_database(duck_con: DuckDBPyConnection, floating_car_data_sour
 
     floating_car_table: DuckDBPyRelation = duck_con.sql("SELECT * FROM floating_car_dataset")
     floating_car_table.to_df().info()
+    return floating_car_table
 
