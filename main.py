@@ -1,11 +1,9 @@
 import sys
-from typing import Union, List
+from typing import List
 
 from engine.static import Project, Task
 from projects.AGAM import AGAM
 from projects.Las_Rozas import LasRozas
-
-
 
 
 
