@@ -26,6 +26,7 @@ class DayPhase(Enum):
     night_only = "night_only"
     all = "all"
 
-LATITUDE: str = "LATITUDE"
-LONGITUDE: str = "LONGITUDE"
+LATITUDE: str = "latitude"
+LONGITUDE: str = "longitude"
+TIMESTAMP: str = "timestamp"
 xmin, xmax, ymin, ymax = 'min_x', 'max_x', 'min_y', 'max_y'

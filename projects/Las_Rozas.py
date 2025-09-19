@@ -85,10 +85,12 @@ class LasRozas:
         extra_filters: Dict[str, List[str]] = {
             Fields.vehicle_type.value: [Vehicle.truck.value, Vehicle.lcv.value]
         }
-        session_ids: DuckDBPyRelation = filter_data_relevant_to_perimeter(self.bridgestone_mobility_database,
-                                                                          self.area_of_interest_bounding_box,
-                                                                          extra_filters)
-        extract_and_label_segments(session_ids)
+        commercial_vehicles_in_area_of_interest: DuckDBPyRelation = filter_data_relevant_to_perimeter(
+                                                                        self.bridgestone_mobility_database,
+                                                                        self.area_of_interest_bounding_box,
+                                                                        extra_filters)
+        segments_in_area_of_interest: DuckDBPyRelation = extract_and_label_segments(self.duck_con,
+                                                                                    commercial_vehicles_in_area_of_interest)
         extract_trips_with_stops()
         label_trip_points()
         enrich_trips()

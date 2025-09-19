@@ -1,9 +1,8 @@
 from typing import Dict, List
 
-from duckdb import DuckDBPyRelation
-from duckdb.duckdb import DuckDBPyConnection
+from duckdb.duckdb import DuckDBPyRelation, DuckDBPyConnection
 
-from engine.static import Vehicle, DayPhase, LONGITUDE, LATITUDE, xmax, ymin, ymax, xmin
+from engine.static import Vehicle, DayPhase, LONGITUDE, LATITUDE, TIMESTAMP, xmax, ymin, ymax, xmin
 
 
 def filter_data_relevant_to_perimeter(floating_car_data: DuckDBPyRelation,
@@ -11,7 +10,6 @@ def filter_data_relevant_to_perimeter(floating_car_data: DuckDBPyRelation,
                                       extra_filters: Dict[str, List[str]])\
         -> DuckDBPyRelation :
 
-    print(floating_car_data.shape)
     interesting_vehicles: DuckDBPyRelation = floating_car_data
     for field in extra_filters:
         if field in floating_car_data.columns:
@@ -24,31 +22,25 @@ def filter_data_relevant_to_perimeter(floating_car_data: DuckDBPyRelation,
 
     return interesting_vehicles
 
-# ```{r}
-# basic_filter <- rlang::list2(
-#   expr(vehicle_type %in% c("lcv","truck")),
-#   expr(country == "ES"),
-#   expr(month %in% c('09','10','11') & year %in% c(2024)), # First batch of spain data
-# )
-# ```
-#
-# Identify trip/session ids within area of interest. This step takes a few minutes to compute.
-#
-# ```{r}
-# #Find session ids that intersect (area of interest)
-# session_ids <- bms_con %>%
-#   filter(
-#     !!!basic_filter,
-#     between(longitude, !!AOI_bb$min_x, !!AOI_bb$max_x),
-#     between(latitude, !!AOI_bb$min_y, !!AOI_bb$max_y)
-#   ) %>%
-#   filter(st_intersects(st_point(longitude,latitude), sql("(SELECT AOI_geom FROM AOI_duck)"))) %>%
-#   distinct(unique_id) %>% compute()
-#
-# ```
 
-def extract_and_label_segments(ids):
-    pass
+def extract_and_label_segments(duck_con: DuckDBPyConnection, vectors_in_area_of_interest: DuckDBPyRelation) \
+        -> DuckDBPyRelation:
+
+    vectors_by_vehicle_and_time: DuckDBPyRelation = duck_con.sql(f"SELECT unique_id, {TIMESTAMP} as timestamp_start, "
+                                               f" LEAD({TIMESTAMP}) OVER (PARTITION BY unique_id ORDER BY {TIMESTAMP}) as timestamp_end,"
+                                               f" {LATITUDE}, {LONGITUDE}, vehicle_type, speed, road_speed_limit,"
+                                               " age(timestamp_end, timestamp_start) AS time_delta,"
+                                               f" st_distance_sphere(st_point({LATITUDE}, {LONGITUDE}), "
+                                                        f"st_point("
+                                                                 f"LEAD({LATITUDE}) OVER (PARTITION BY unique_id ORDER BY {TIMESTAMP}) , "
+                                                                 f"LEAD({LONGITUDE}) OVER (PARTITION BY unique_id ORDER BY {TIMESTAMP})))"
+                                                        " AS distance_delta,"
+                                               f" distance_delta * 3.6 / epoch(time_delta) as instant_speed"
+                                               " FROM vectors_in_area_of_interest "
+                                               " ORDER BY timestamp")
+    vectors_by_vehicle_and_time = vectors_by_vehicle_and_time.filter("timestamp_end NOT NULL")
+    print(vectors_by_vehicle_and_time)
+    return vectors_by_vehicle_and_time
 
 def extract_trips_with_stops():
     pass
