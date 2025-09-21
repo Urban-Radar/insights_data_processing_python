@@ -4,6 +4,8 @@ from duckdb.duckdb import DuckDBPyRelation, DuckDBPyConnection
 
 from engine.static import Vehicle, DayPhase, LONGITUDE, LATITUDE, TIMESTAMP, xmax, ymin, ymax, xmin
 
+speed_threshold: float = 5
+stop_time_threshold: float = 3*60
 
 def filter_data_relevant_to_perimeter(floating_car_data: DuckDBPyRelation,
                                       area_of_interest: Dict[str, float],
@@ -42,8 +44,14 @@ def extract_and_label_segments(duck_con: DuckDBPyConnection, vectors_in_area_of_
     print(vectors_by_vehicle_and_time)
     return vectors_by_vehicle_and_time
 
-def extract_trips_with_stops():
-    pass
+def extract_trips_with_stops(connection: DuckDBPyConnection):
+     vectors_by_vehicle_and_time = connection.sql(f"SELECT * , "
+                                                          f"CASE WHEN (speed < {speed_threshold} OR instant_speed < {speed_threshold}) AND epoch(time_delta) > {stop_time_threshold} "
+                                                          f"THEN 1 ELSE 0 END AS 'is_stop', "
+                                                          f"CASE WHEN is_stop = 1 AND LAG(is_stop) OVER (PARTITION BY unique_id ORDER BY timestamp_start) = 0 "
+                                                          f"THEN 1 ELSE 0 END AS 'is_new_stop' "
+                                                          f"FROM vectors_by_vehicle_and_time")
+     print(connection.sql(f"SELECT count(unique_id), count(time_delta), sum(is_stop), sum(is_new_stop) FROM vectors_by_vehicle_and_time WHERE is_stop = 1"))
 
 def label_trip_points():
     label_trip_points_by_category(Vehicle.truck, DayPhase.all)
