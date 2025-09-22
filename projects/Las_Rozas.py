@@ -9,9 +9,8 @@ from duckdb import DuckDBPyConnection
 from duckdb.duckdb import DuckDBPyRelation
 
 from engine.io_with_insights import export_to_environment
-from engine.trips_calculator import filter_data_relevant_to_perimeter, extract_and_label_segments, extract_trips_with_stops, \
-    label_trip_points, enrich_trips, derive_od_datasets, prepare_trips_for_map_matching, infer_road_use, \
-    infer_road_congestion
+from engine.trips_calculator import (label_trip_points, enrich_trips, derive_od_datasets, prepare_trips_for_map_matching,
+                                     infer_road_use, infer_road_congestion, TripsCalculator)
 
 from engine.geometry import build_area_of_interest
 from engine.floating_cars import build_mobility_database
@@ -85,13 +84,14 @@ class LasRozas:
         extra_filters: Dict[str, List[str]] = {
             Fields.vehicle_type.value: [Vehicle.truck.value, Vehicle.lcv.value]
         }
-        commercial_vehicles_in_area_of_interest: DuckDBPyRelation = filter_data_relevant_to_perimeter(
+        trips_calculator: TripsCalculator = TripsCalculator(self.duck_con)
+        commercial_vehicles_in_area_of_interest: DuckDBPyRelation = trips_calculator.filter_data_relevant_to_perimeter(
                                                                         self.bridgestone_mobility_database,
                                                                         self.area_of_interest_bounding_box,
                                                                         extra_filters)
-        segments_in_area_of_interest: DuckDBPyRelation = extract_and_label_segments(self.duck_con,
-                                                                                    commercial_vehicles_in_area_of_interest)
-        extract_trips_with_stops(self.duck_con, segments_in_area_of_interest)
+        segments_in_area_of_interest: DuckDBPyRelation = trips_calculator.extract_and_label_segments(
+            commercial_vehicles_in_area_of_interest)
+        trips_calculator.extract_trips_with_stops(segments_in_area_of_interest)
         label_trip_points()
         enrich_trips()
         derive_od_datasets()
