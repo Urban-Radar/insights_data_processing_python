@@ -91,7 +91,7 @@ class LasRozas:
                                                                         extra_filters)
         segments_in_area_of_interest: DuckDBPyRelation = extract_and_label_segments(self.duck_con,
                                                                                     commercial_vehicles_in_area_of_interest)
-        extract_trips_with_stops()
+        extract_trips_with_stops(self.duck_con, segments_in_area_of_interest)
         label_trip_points()
         enrich_trips()
         derive_od_datasets()

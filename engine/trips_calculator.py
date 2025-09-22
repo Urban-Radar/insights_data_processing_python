@@ -44,7 +44,7 @@ def extract_and_label_segments(duck_con: DuckDBPyConnection, vectors_in_area_of_
     print(vectors_by_vehicle_and_time)
     return vectors_by_vehicle_and_time
 
-def extract_trips_with_stops(connection: DuckDBPyConnection):
+def extract_trips_with_stops(connection: DuckDBPyConnection, vectors_by_vehicle_and_time):
      vectors_by_vehicle_and_time = connection.sql(f"SELECT * , "
                                                           f"CASE WHEN (speed < {speed_threshold} OR instant_speed < {speed_threshold}) AND epoch(time_delta) > {stop_time_threshold} "
                                                           f"THEN 1 ELSE 0 END AS 'is_stop', "
